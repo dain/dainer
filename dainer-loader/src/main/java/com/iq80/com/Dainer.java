@@ -54,7 +54,7 @@ public class Dainer
             throws Exception
     {
         Dainer dainer = new Dainer();
-        dainer.resolvePom(new File(System.getProperty("user.dir"), "src/test/poms/pom.xml"));
+        dainer.resolvePom(new File(args[0]));
     }
 
     @Override
