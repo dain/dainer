@@ -1,9 +1,17 @@
 package com.iq80.com;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.List;
 
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.repository.internal.DefaultServiceLocator;
 import org.apache.maven.repository.internal.MavenRepositorySystemSession;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.sonatype.aether.RepositorySystem;
 import org.sonatype.aether.RepositorySystemSession;
 import org.sonatype.aether.artifact.Artifact;
@@ -11,7 +19,6 @@ import org.sonatype.aether.collection.CollectRequest;
 import org.sonatype.aether.collection.CollectResult;
 import org.sonatype.aether.connector.async.AsyncRepositoryConnectorFactory;
 import org.sonatype.aether.connector.file.FileRepositoryConnectorFactory;
-import org.sonatype.aether.graph.Dependency;
 import org.sonatype.aether.graph.DependencyFilter;
 import org.sonatype.aether.repository.LocalRepository;
 import org.sonatype.aether.repository.RemoteRepository;
@@ -31,20 +38,38 @@ public class Dainer {
 
   public static void main(String[] args) throws Exception {
     Dainer dainer = new Dainer();
-    dainer.resolve("org.apache.maven:maven-core:3.0.4");
+    dainer.resolve(new File(System.getProperty("user.dir"), "pom.xml"));
   }
-  
-  public void resolve(String coordinate) throws Exception {
-    RepositorySystem system = newRepositorySystem();
-    RepositorySystemSession session = newRepositorySystemSession(system);
-    RemoteRepository repo = newCentralRepository();
 
-    Artifact artifact = new DefaultArtifact(coordinate);
-    DependencyFilter classpathFlter = DependencyFilterUtils.classpathFilter(JavaScopes.RUNTIME);
+  public void resolve(File pom) throws Exception {
+    MavenXpp3Reader reader = new MavenXpp3Reader();
+    Model model = reader.read(new FileInputStream(pom));
 
     CollectRequest collectRequest = new CollectRequest();
-    collectRequest.setRoot(new Dependency(artifact, JavaScopes.RUNTIME));
-    collectRequest.addRepository(repo);
+
+    for (Dependency dependency : model.getDependencies()) {
+      Artifact artifact = new DefaultArtifact(dependency.getGroupId(), dependency.getArtifactId(), dependency.getClassifier(), dependency.getType(), dependency.getVersion());
+      collectRequest.addDependency(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
+    }
+
+    resolve(collectRequest);
+  }
+
+  public void resolve(String coordinate) throws Exception {
+    Artifact artifact = new DefaultArtifact(coordinate);
+    CollectRequest collectRequest = new CollectRequest();
+    collectRequest.setRoot(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
+    resolve(collectRequest);
+  }
+  
+  
+  public void resolve(CollectRequest collectRequest) throws Exception {
+    collectRequest.addRepository(newCentralRepository());
+    
+    RepositorySystem system = newRepositorySystem();
+    RepositorySystemSession session = newRepositorySystemSession(system);
+
+    DependencyFilter classpathFlter = DependencyFilterUtils.classpathFilter(JavaScopes.RUNTIME);
 
     // If you want the grab the file and do somethign with them: like make a classloader
     DependencyRequest dependencyRequest = new DependencyRequest(collectRequest, classpathFlter);
@@ -54,8 +79,8 @@ public class Dainer {
     }
 
     // If you want to show the result: say in a tree
-    CollectResult collectResult = system.collectDependencies( session, collectRequest );                                                     
-    collectResult.getRoot().accept( new ConsoleDependencyGraphDumper() );        
+    CollectResult collectResult = system.collectDependencies(session, collectRequest);
+    collectResult.getRoot().accept(new ConsoleDependencyGraphDumper());
   }
 
   public static RepositorySystem newRepositorySystem() {
@@ -73,7 +98,7 @@ public class Dainer {
 
     session.setTransferListener(new ConsoleTransferListener());
     session.setRepositoryListener(new ConsoleRepositoryListener());
-    
+
     return session;
   }
 
