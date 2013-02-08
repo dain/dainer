@@ -1,9 +1,11 @@
 package com.iq80.com;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
-
+import com.google.inject.AbstractModule;
+import com.iq80.com.aether.ConsoleDependencyGraphDumper;
+import com.iq80.com.aether.ConsoleRepositoryListener;
+import com.iq80.com.aether.ConsoleTransferListener;
+import com.iq80.com.aether.Slf4jLoggerManager;
+import com.iq80.dainer.spi.MavenResolver;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
@@ -40,127 +42,145 @@ import org.sonatype.aether.util.artifact.DefaultArtifact;
 import org.sonatype.aether.util.artifact.JavaScopes;
 import org.sonatype.aether.util.filter.DependencyFilterUtils;
 
-import com.google.inject.AbstractModule;
-import com.iq80.com.aether.ConsoleDependencyGraphDumper;
-import com.iq80.com.aether.ConsoleRepositoryListener;
-import com.iq80.com.aether.ConsoleTransferListener;
-import com.iq80.com.aether.Slf4jLoggerManager;
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
 
-public class Dainer {
+public class Dainer
+    implements MavenResolver
+{
 
-  public static void main(String[] args) throws Exception {
-    Dainer dainer = new Dainer();
-    dainer.resolve(new File(System.getProperty("user.dir"), "src/test/poms/pom.xml"));    
-  }
-
-  public void resolve(File pom) throws Exception {
-
-    RemoteRepository repo = newCentralRepository();
-    RepositorySystem system = newRepositorySystem();
-    RepositorySystemSession session = newRepositorySystemSession(system);
-
-    PlexusContainer container = container();
-    org.apache.maven.repository.RepositorySystem lrs = container.lookup(org.apache.maven.repository.RepositorySystem.class);
-    ProjectBuilder projectBuilder = container.lookup(ProjectBuilder.class);
-    ProjectBuildingRequest request = new DefaultProjectBuildingRequest();
-    request.setRepositorySession(session);
-    request.setProcessPlugins(false);
-    request.setLocalRepository(lrs.createDefaultLocalRepository());
-    request.setRemoteRepositories(Arrays.asList(new ArtifactRepository[] {lrs.createDefaultRemoteRepository()}));
-    ProjectBuildingResult result = projectBuilder.build(pom, request);
-    System.out.println(result.getProject());
-    
-    resolve(result.getProject());
-  }
-
-  
-  public void resolve(MavenProject pom) throws Exception {
-
-    CollectRequest collectRequest = new CollectRequest();
-
-    for (Dependency dependency : pom.getDependencies()) {
-      Artifact artifact = new DefaultArtifact(dependency.getGroupId(), dependency.getArtifactId(), dependency.getClassifier(), dependency.getType(), dependency.getVersion());
-      collectRequest.addDependency(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
-    }
-    resolve(collectRequest);
-  }
-
-  public void resolve(String coordinate) throws Exception {
-    Artifact artifact = new DefaultArtifact(coordinate);
-    CollectRequest collectRequest = new CollectRequest();
-    collectRequest.setRoot(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
-    resolve(collectRequest);
-  }
-
-  public void resolve(CollectRequest collectRequest) throws Exception {
-    collectRequest.addRepository(newCentralRepository());
-
-    RemoteRepository repo = newCentralRepository();
-    RepositorySystem system = newRepositorySystem();
-    RepositorySystemSession session = newRepositorySystemSession(system);
-
-    DependencyFilter classpathFlter = DependencyFilterUtils.classpathFilter(JavaScopes.RUNTIME);
-
-    // If you want the grab the file and do somethign with them: like make a classloader
-    DependencyRequest dependencyRequest = new DependencyRequest(collectRequest, classpathFlter);
-    List<ArtifactResult> artifactResults = system.resolveDependencies(session, dependencyRequest).getArtifactResults();
-    for (ArtifactResult artifactResult : artifactResults) {
-      System.out.println(artifactResult.getArtifact() + " resolved to " + artifactResult.getArtifact().getFile());
+    public static void main(String[] args)
+            throws Exception
+    {
+        Dainer dainer = new Dainer();
+        dainer.resolvePom(new File(System.getProperty("user.dir"), "src/test/poms/pom.xml"));
     }
 
-    // If you want to show the result: say in a tree
-    CollectResult collectResult = system.collectDependencies(session, collectRequest);
-    collectResult.getRoot().accept(new ConsoleDependencyGraphDumper());
-  }
+    @Override
+    public void resolvePom(File pom)
+            throws Exception
+    {
 
-  public static RepositorySystem newRepositorySystem() {
-    DefaultServiceLocator locator = new DefaultServiceLocator();
-    locator.addService(RepositoryConnectorFactory.class, FileRepositoryConnectorFactory.class);
-    locator.addService(RepositoryConnectorFactory.class, AsyncRepositoryConnectorFactory.class);
-    return locator.getService(RepositorySystem.class);
-  }
+        RemoteRepository repo = newCentralRepository();
+        RepositorySystem system = newRepositorySystem();
+        RepositorySystemSession session = newRepositorySystemSession(system);
 
-  public static DefaultRepositorySystemSession newRepositorySystemSession(RepositorySystem system) {
-    MavenRepositorySystemSession session = new MavenRepositorySystemSession();
+        PlexusContainer container = container();
+        org.apache.maven.repository.RepositorySystem lrs = container.lookup(org.apache.maven.repository.RepositorySystem.class);
+        ProjectBuilder projectBuilder = container.lookup(ProjectBuilder.class);
+        ProjectBuildingRequest request = new DefaultProjectBuildingRequest();
+        request.setRepositorySession(session);
+        request.setProcessPlugins(false);
+        request.setLocalRepository(lrs.createDefaultLocalRepository());
+        request.setRemoteRepositories(Arrays.asList(new ArtifactRepository[]{lrs.createDefaultRemoteRepository()}));
+        ProjectBuildingResult result = projectBuilder.build(pom, request);
+        System.out.println(result.getProject());
 
-    LocalRepository localRepo = new LocalRepository("target/local-repo");
-    session.setLocalRepositoryManager(system.newLocalRepositoryManager(localRepo));
+        resolve(result.getProject());
+    }
 
-    session.setTransferListener(new ConsoleTransferListener());
-    session.setRepositoryListener(new ConsoleRepositoryListener());
+    public void resolve(MavenProject pom)
+            throws Exception
+    {
 
-    return session;
-  }
+        CollectRequest collectRequest = new CollectRequest();
 
-  public static RemoteRepository newCentralRepository() {
-    return new RemoteRepository("central", "default", "http://repo1.maven.org/maven2/");
-  }
+        for (Dependency dependency : pom.getDependencies()) {
+            Artifact artifact = new DefaultArtifact(dependency.getGroupId(), dependency.getArtifactId(), dependency.getClassifier(), dependency.getType(), dependency.getVersion());
+            collectRequest.addDependency(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
+        }
+        resolve(collectRequest);
+    }
 
-  public PlexusContainer container() throws Exception {
+    @Override
+    public void resolveCoordinate(String coordinate)
+            throws Exception
+    {
+        Artifact artifact = new DefaultArtifact(coordinate);
+        CollectRequest collectRequest = new CollectRequest();
+        collectRequest.setRoot(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
+        resolve(collectRequest);
+    }
 
-    ClassWorld classWorld = new ClassWorld("plexus.core", Thread.currentThread().getContextClassLoader());
+    public void resolve(CollectRequest collectRequest)
+            throws Exception
+    {
+        collectRequest.addRepository(newCentralRepository());
 
-    DefaultPlexusContainer container = null;
+        RemoteRepository repo = newCentralRepository();
+        RepositorySystem system = newRepositorySystem();
+        RepositorySystemSession session = newRepositorySystemSession(system);
 
-    ContainerConfiguration cc = new DefaultContainerConfiguration()
-      .setClassWorld(classWorld)
-      .setRealm(null).setClassPathScanning(PlexusConstants.SCANNING_INDEX)
-      .setAutoWiring(true)
-      .setName("maven");
+        DependencyFilter classpathFlter = DependencyFilterUtils.classpathFilter(JavaScopes.RUNTIME);
 
-    container = new DefaultPlexusContainer(cc, new AbstractModule() {
-      protected void configure() {
-        bind(ILoggerFactory.class).toInstance(LoggerFactory.getILoggerFactory());
-      }
-    });
+        // If you want the grab the file and do somethign with them: like make a classloader
+        DependencyRequest dependencyRequest = new DependencyRequest(collectRequest, classpathFlter);
+        List<ArtifactResult> artifactResults = system.resolveDependencies(session, dependencyRequest).getArtifactResults();
+        for (ArtifactResult artifactResult : artifactResults) {
+            System.out.println(artifactResult.getArtifact() + " resolved to " + artifactResult.getArtifact().getFile());
+        }
 
-    // NOTE: To avoid inconsistencies, we'll use the TCCL exclusively for lookups
-    container.setLookupRealm(null);
-    container.setLoggerManager(new Slf4jLoggerManager());
-    container.getLoggerManager().setThresholds(Logger.LEVEL_INFO);
-    Thread.currentThread().setContextClassLoader(container.getContainerRealm());
+        // If you want to show the result: say in a tree
+        CollectResult collectResult = system.collectDependencies(session, collectRequest);
+        collectResult.getRoot().accept(new ConsoleDependencyGraphDumper());
+    }
 
-    return container;
-  }
+    public static RepositorySystem newRepositorySystem()
+    {
+        DefaultServiceLocator locator = new DefaultServiceLocator();
+        locator.addService(RepositoryConnectorFactory.class, FileRepositoryConnectorFactory.class);
+        locator.addService(RepositoryConnectorFactory.class, AsyncRepositoryConnectorFactory.class);
+        return locator.getService(RepositorySystem.class);
+    }
+
+    public static DefaultRepositorySystemSession newRepositorySystemSession(RepositorySystem system)
+    {
+        MavenRepositorySystemSession session = new MavenRepositorySystemSession();
+
+        LocalRepository localRepo = new LocalRepository("target/local-repo");
+        session.setLocalRepositoryManager(system.newLocalRepositoryManager(localRepo));
+
+        session.setTransferListener(new ConsoleTransferListener());
+        session.setRepositoryListener(new ConsoleRepositoryListener());
+
+        return session;
+    }
+
+    public static RemoteRepository newCentralRepository()
+    {
+        return new RemoteRepository("central", "default", "http://repo1.maven.org/maven2/");
+    }
+
+    public PlexusContainer container()
+            throws Exception
+    {
+
+        ClassWorld classWorld = new ClassWorld("plexus.core", Thread.currentThread().getContextClassLoader());
+
+        DefaultPlexusContainer container = null;
+
+        ContainerConfiguration cc = new DefaultContainerConfiguration()
+                .setClassWorld(classWorld)
+                .setRealm(null).setClassPathScanning(PlexusConstants.SCANNING_INDEX)
+                .setAutoWiring(true)
+                .setName("maven");
+
+        container = new DefaultPlexusContainer(cc, new AbstractModule()
+        {
+            protected void configure()
+            {
+                bind(ILoggerFactory.class).toInstance(LoggerFactory.getILoggerFactory());
+            }
+        });
+
+        // NOTE: To avoid inconsistencies, we'll use the TCCL exclusively for lookups
+        container.setLookupRealm(null);
+        container.setLoggerManager(new Slf4jLoggerManager());
+        container.getLoggerManager().setThresholds(Logger.LEVEL_INFO);
+        Thread.currentThread().setContextClassLoader(container.getContainerRealm());
+
+        return container;
+    }
 
 }

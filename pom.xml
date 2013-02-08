@@ -8,7 +8,9 @@
   <packaging>pom</packaging>
 
     <modules>
+        <module>dainer-spi</module>
         <module>dainer-loader</module>
+        <module>dainer-magic</module>
     </modules>
 
     <build>
