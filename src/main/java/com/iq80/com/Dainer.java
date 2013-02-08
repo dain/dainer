@@ -1,17 +1,27 @@
 package com.iq80.com;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
+import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import org.apache.maven.project.DefaultProjectBuildingRequest;
+import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuilder;
+import org.apache.maven.project.ProjectBuildingRequest;
+import org.apache.maven.project.ProjectBuildingResult;
 import org.apache.maven.repository.internal.DefaultServiceLocator;
 import org.apache.maven.repository.internal.MavenRepositorySystemSession;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import org.codehaus.plexus.ContainerConfiguration;
+import org.codehaus.plexus.DefaultContainerConfiguration;
+import org.codehaus.plexus.DefaultPlexusContainer;
+import org.codehaus.plexus.PlexusConstants;
+import org.codehaus.plexus.PlexusContainer;
+import org.codehaus.plexus.classworlds.ClassWorld;
+import org.codehaus.plexus.logging.Logger;
+import org.slf4j.ILoggerFactory;
+import org.slf4j.LoggerFactory;
 import org.sonatype.aether.RepositorySystem;
 import org.sonatype.aether.RepositorySystemSession;
 import org.sonatype.aether.artifact.Artifact;
@@ -30,28 +40,48 @@ import org.sonatype.aether.util.artifact.DefaultArtifact;
 import org.sonatype.aether.util.artifact.JavaScopes;
 import org.sonatype.aether.util.filter.DependencyFilterUtils;
 
+import com.google.inject.AbstractModule;
 import com.iq80.com.aether.ConsoleDependencyGraphDumper;
 import com.iq80.com.aether.ConsoleRepositoryListener;
 import com.iq80.com.aether.ConsoleTransferListener;
+import com.iq80.com.aether.Slf4jLoggerManager;
 
 public class Dainer {
 
   public static void main(String[] args) throws Exception {
     Dainer dainer = new Dainer();
-    dainer.resolve(new File(System.getProperty("user.dir"), "pom.xml"));
+    dainer.resolve(new File(System.getProperty("user.dir"), "src/test/poms/pom.xml"));    
   }
 
   public void resolve(File pom) throws Exception {
-    MavenXpp3Reader reader = new MavenXpp3Reader();
-    Model model = reader.read(new FileInputStream(pom));
+
+    RemoteRepository repo = newCentralRepository();
+    RepositorySystem system = newRepositorySystem();
+    RepositorySystemSession session = newRepositorySystemSession(system);
+
+    PlexusContainer container = container();
+    org.apache.maven.repository.RepositorySystem lrs = container.lookup(org.apache.maven.repository.RepositorySystem.class);
+    ProjectBuilder projectBuilder = container.lookup(ProjectBuilder.class);
+    ProjectBuildingRequest request = new DefaultProjectBuildingRequest();
+    request.setRepositorySession(session);
+    request.setProcessPlugins(false);
+    request.setLocalRepository(lrs.createDefaultLocalRepository());
+    request.setRemoteRepositories(Arrays.asList(new ArtifactRepository[] {lrs.createDefaultRemoteRepository()}));
+    ProjectBuildingResult result = projectBuilder.build(pom, request);
+    System.out.println(result.getProject());
+    
+    resolve(result.getProject());
+  }
+
+  
+  public void resolve(MavenProject pom) throws Exception {
 
     CollectRequest collectRequest = new CollectRequest();
 
-    for (Dependency dependency : model.getDependencies()) {
+    for (Dependency dependency : pom.getDependencies()) {
       Artifact artifact = new DefaultArtifact(dependency.getGroupId(), dependency.getArtifactId(), dependency.getClassifier(), dependency.getType(), dependency.getVersion());
       collectRequest.addDependency(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
     }
-
     resolve(collectRequest);
   }
 
@@ -61,11 +91,11 @@ public class Dainer {
     collectRequest.setRoot(new org.sonatype.aether.graph.Dependency(artifact, JavaScopes.RUNTIME));
     resolve(collectRequest);
   }
-  
-  
+
   public void resolve(CollectRequest collectRequest) throws Exception {
     collectRequest.addRepository(newCentralRepository());
-    
+
+    RemoteRepository repo = newCentralRepository();
     RepositorySystem system = newRepositorySystem();
     RepositorySystemSession session = newRepositorySystemSession(system);
 
@@ -104,6 +134,33 @@ public class Dainer {
 
   public static RemoteRepository newCentralRepository() {
     return new RemoteRepository("central", "default", "http://repo1.maven.org/maven2/");
+  }
+
+  public PlexusContainer container() throws Exception {
+
+    ClassWorld classWorld = new ClassWorld("plexus.core", Thread.currentThread().getContextClassLoader());
+
+    DefaultPlexusContainer container = null;
+
+    ContainerConfiguration cc = new DefaultContainerConfiguration()
+      .setClassWorld(classWorld)
+      .setRealm(null).setClassPathScanning(PlexusConstants.SCANNING_INDEX)
+      .setAutoWiring(true)
+      .setName("maven");
+
+    container = new DefaultPlexusContainer(cc, new AbstractModule() {
+      protected void configure() {
+        bind(ILoggerFactory.class).toInstance(LoggerFactory.getILoggerFactory());
+      }
+    });
+
+    // NOTE: To avoid inconsistencies, we'll use the TCCL exclusively for lookups
+    container.setLookupRealm(null);
+    container.setLoggerManager(new Slf4jLoggerManager());
+    container.getLoggerManager().setThresholds(Logger.LEVEL_INFO);
+    Thread.currentThread().setContextClassLoader(container.getContainerRealm());
+
+    return container;
   }
 
 }

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.airlift.airship</groupId>
+        <artifactId>airship-root</artifactId>
+        <version>0.10-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.airlift.airship</groupId>
+    <artifactId>airship-integration-tests</artifactId>
+    <version>0.10-SNAPSHOT</version>
+    <name>airship-integration-tests</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <sonatypeOssDistMgmtSnapshotsUrl>https://oss.sonatype.org/content/repositories/snapshots/</sonatypeOssDistMgmtSnapshotsUrl>
+    </properties>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>sonatype-nexus-snapshots</id>
+            <name>Sonatype Nexus Snapshots</name>
+            <url>${sonatypeOssDistMgmtSnapshotsUrl}</url>
+        </snapshotRepository>
+        <repository>
+            <id>sonatype-nexus-staging</id>
+            <name>Nexus Release Repository</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+    <dependencies>
+        <!-- for testing -->
+        <dependency>
+            <groupId>io.airlift.airship</groupId>
+            <artifactId>airship-agent</artifactId>
+            <version>0.10-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift.airship</groupId>
+            <artifactId>airship-coordinator</artifactId>
+            <version>0.10-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift.airship</groupId>
+            <artifactId>airship-cli</artifactId>
+            <version>0.10-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>6.0.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>testing</artifactId>
+            <version>0.66</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift.airship</groupId>
+            <artifactId>airship-shared</artifactId>
+            <version>0.10-SNAPSHOT</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift.airship</groupId>
+            <artifactId>airship-coordinator</artifactId>
+            <version>0.10-SNAPSHOT</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift.airship</groupId>
+            <artifactId>airship-agent</artifactId>
+            <version>0.10-SNAPSHOT</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
