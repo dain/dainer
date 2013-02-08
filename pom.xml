@@ -11,6 +11,7 @@
         <module>dainer-spi</module>
         <module>dainer-loader</module>
         <module>dainer-magic</module>
+        <module>dainer-aether</module>
     </modules>
 
     <properties>

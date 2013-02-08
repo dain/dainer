@@ -1,4 +1,4 @@
-package com.iq80.com.aether;
+package com.iq80.com.pom;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
