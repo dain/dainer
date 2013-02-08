@@ -15,11 +15,16 @@
             <unpack>true</unpack>
         </dependencySet>
         <dependencySet>
+            <scope>provided</scope>
             <includes>
-                <include>com.iq80.com:dainer-loader:*</include>
+                <include>*:jar:*</include>
             </includes>
-            <outputFileNameMapping>loader.jar</outputFileNameMapping>
-            <outputDirectory>com/iq80/dainer/magic</outputDirectory>
+            <excludes>
+                <exclude>com.iq80.com:${artifactId}:*</exclude>
+                <exclude>com.iq80.com:dainer-spi:*</exclude>
+            </excludes>
+            <useTransitiveDependencies>true</useTransitiveDependencies>
+            <outputDirectory>com/iq80/dainer/magic/deps</outputDirectory>
         </dependencySet>
     </dependencySets>
 </assembly>

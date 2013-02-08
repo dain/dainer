@@ -54,7 +54,7 @@ public class Dainer
             throws Exception
     {
         Dainer dainer = new Dainer();
-        dainer.resolvePom(new File(args[0]));
+        dainer.resolvePom(new File("pom.xml"));
     }
 
     @Override
@@ -73,7 +73,7 @@ public class Dainer
         request.setRepositorySession(session);
         request.setProcessPlugins(false);
         request.setLocalRepository(lrs.createDefaultLocalRepository());
-        request.setRemoteRepositories(Arrays.asList(new ArtifactRepository[]{lrs.createDefaultRemoteRepository()}));
+        request.setRemoteRepositories(Arrays.asList(new ArtifactRepository[]{lrs.createDefaultRemoteRepository()}.clone()));
         ProjectBuildingResult result = projectBuilder.build(pom, request);
         System.out.println(result.getProject());
 
@@ -118,6 +118,7 @@ public class Dainer
         DependencyRequest dependencyRequest = new DependencyRequest(collectRequest, classpathFlter);
         List<ArtifactResult> artifactResults = system.resolveDependencies(session, dependencyRequest).getArtifactResults();
         for (ArtifactResult artifactResult : artifactResults) {
+            Artifact artifact = artifactResult.getArtifact();
             System.out.println(artifactResult.getArtifact() + " resolved to " + artifactResult.getArtifact().getFile());
         }
 
